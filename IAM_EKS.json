@@ -1,0 +1,34 @@
+ {
+     "Version": "2012-10-17",
+     "Statement": [
+         {
+             "Effect": "Allow",
+             "Action": [
+                 "eks:ListClusters",
+                 "eks:DescribeCluster",
+                 "eks:ListNodegroups",
+                 "eks:DescribeNodegroup",
+                 "eks:ListFargateProfiles",
+                 "eks:DescribeFargateProfile"
+             ],
+             "Resource": "*"
+         },
+         {
+             "Effect": "Allow",
+             "Action": [
+                 "ec2:DescribeInstances",
+                 "ec2:DescribeVpcs",
+                 "ec2:DescribeSubnets",
+                 "ec2:DescribeSecurityGroups"
+             ],
+             "Resource": "*"
+         },
+         {
+             "Effect": "Allow",
+             "Action": [
+                 "eks:AccessKubernetesApi"
+             ],
+             "Resource": "*"
+         }
+     ]
+ }
