@@ -94,7 +94,7 @@ def generate_interactive_graph(edges, nodes, aws_services, dynamodb_services, po
         print("\U0001F6A8 No nodes found, skipping graph generation.")
         return None
 
-    print(f"✅ Adding {len(nodes)} nodes and {len(edges)} edges to the graph.")
+    print(f"Adding {len(nodes)} nodes and {len(edges)} edges to the graph.")
 
     for node in nodes:
         color = "lightblue"
@@ -137,13 +137,13 @@ def generate_interactive_graph(edges, nodes, aws_services, dynamodb_services, po
     graph_path = os.path.join(static_dir, "service_graph.html")
 
     try:
-        print(f"📢 Generating graph at {graph_path}...")
+        print(f"Generating graph at {graph_path}...")
         G.write_html(graph_path)
 
         if not os.path.exists(graph_path):
             raise FileNotFoundError("Graph file was not created properly.")
 
-        print("✅ Graph successfully generated!")
+        print("Graph successfully generated!")
         return graph_path
     except Exception as e:
         print(f"\U0001F6A8 Error generating graph: {e}")
