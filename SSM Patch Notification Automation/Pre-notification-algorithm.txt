@@ -1,0 +1,148 @@
+Start
+  
+  ─ Pre-Patch:
+     ─ Read accounts.csv
+     ─ Assume roles
+     ─ Find MWs running today
+     ─ Count targets
+     ─ Write CSV to S3
+     ─ Send pre-patch email
+  
+  ─ Wait 5 minutes
+  
+  ─ Post-Patch:
+      ─ Read pre-patch CSV
+      ─ Assume roles
+      ─ Get patch results
+      ─ Write post-patch CSV
+      ─ Send post-patch email
+==============================================
+
+1. Read account ids, region, role_name  from CSV
+2. Assume role into each account
+3. Call describe_maintenance_windows
+4. For each MW:
+   - Read NextExecutionTime
+   - If execution date == today (UTC):
+       - Fetch MW targets
+       - count the number of target instance
+       - Store MW details along with number of target instance per MW
+5. If no MW scheduled for particular day, skip sending notification
+6. Write results into CSV
+7. Upload CSV to S3
+8. send SES notification
+==================================
+Post patching algorithm
+    # pre patch output will be written to a shared account s3 bucket
+    # a shared account which consist of pre patch output csv file
+    # get shared account details(account id, role name, region)
+    # assume shared account role to access pre-patch output s3 bucket.
+    
+    # now you got the pre-patch-ouptut.csv file
+    # now loop through by account id and find MW and get success and fail count
+    # for next row of pre-patch-output.csv if account id is same as previous row then don't call assume role function
+    # if account id is different then call assume role function
+
+=================================
+1. correct the account id format in csv file -- done
+2. include region also as column in pre-patch csv file -- done
+4. remove lambda handler 
+
+5. if no MW running don't send email but this needs to be logged in GitHub actions -- done for logging for now printing message
+6. make sure to include "mmpatching" as pre requisite before fetching MW details -- done
+7. merge account ids as one in html output -- done
+8. skip sending email if no MW scheduled for current date -- done
+7. include region also in MW csv pre patch output csv file -- done
+
+post patching:
+1. to get proper success and failure count per maintenance window -- done
+	- test1: by adding 2 target instance -- done
+	  test2: induce error by stopping one of the target instance and check success and failed count -- done
+2. work on sending email for post python script -- done
+work on proper formatting of account id while storing it in output.csv and also in the SES email. -- done
+3. check on aws session functionality -- done
+4. combine both pre and post script to one
+
+5. check on getting the count from # completed and # error.
+
+========================================
+Next action items:
+1. Integrate post and pre patch python script  -- done
+2. Create Documentation for post patch python script -- done
+3. work on creating variable.py whose values keeps changing.
+4. Error handling and logging -- taken care by Abhishek but you also do R&D on how this works
+
+==============================
+Start working on GitHub actions:
+
+==================================
+
+{
+    "UserId": "AROA4RW7OCAGPG3EYBJBE:bhaskar.dm@modmed.com",
+    "Account": "862683271180",
+    "Arn": "arn:aws:sts::862683271180:assumed-role/AWSReservedSSO_CloudCoETeamAccess_82c27666a73bbe6a/bhaskar.dm@modmed.com"
+}
+
+To remove existing creds
+rm -f ~/.aws/credentials
+rm -f ~/.aws/config
+
+To test role assumption:
+aws sts assume-role \
+  --role-arn arn:aws:iam::862683271180:role/AWSReservedSSO_CloudCoETeamAccess_82c27666a73bbe6a \
+  --role-session-name TestSession
+
+An error occurred (AccessDenied) when calling the AssumeRole operation: User: arn:aws:sts::862683271180:assumed-role/AmazonSSMRoleForInstancesQuickSetup/i-09c869b5873b34611 is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::862683271180:role/AWSReservedSSO_CloudCoETeamAccess_82c27666a73bbe6a
+
+====================================================
+Task:
+- Ec2 has instance role --> added "Assume_role_policy_POC" in "AmazonSSMRoleForInstancesQuickSetup" role (if anything goes wrong then remove "Assume_role_policy_POC" policy in AmazonSSMRoleForInstancesQuickSetup role)
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "Statement1",
+            "Effect": "Allow",
+            "Action": "sts:AssumeRole",
+            "Resource": "arn:aws:iam::862683271180:role/Python_SSM_Role_POC"
+        }
+    ]
+}
+
+
+- created new role "Python_SSM_Role_POC" with trust entity type as (AWS Account)
+given admin access for now
+ and added below trust relationship
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::target_account_id:role/AmazonSSMRoleForInstancesQuickSetup"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+
+test:
+aws sts assume-role \
+  --role-arn arn:aws:iam::862683271180:role/Python_SSM_Role_POC \
+  --role-session-name TestSession
+
+Flow: "AmazonSSMRoleForInstancesQuickSetup" role needs to assume Python_SSM_Role_POC role
+EC2 instance
+  Role: AmazonSSMRoleForInstancesQuickSetup (here added policy)
+        
+         sts:AssumeRole
+        ▼
+Python_SSM_Role_POC (the role which python script needs to assume) and here added trust relations
+        
+        ▼
+SSM / EC2 / ResourceGroups access
+
+
+
+
+
