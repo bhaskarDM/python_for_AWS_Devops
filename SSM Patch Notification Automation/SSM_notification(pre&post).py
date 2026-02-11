@@ -5,6 +5,7 @@ import io
 import json
 import html
 import time
+import sys
 from collections import Counter
 from datetime import datetime, timezone, timedelta
 from email.mime.multipart import MIMEMultipart
@@ -268,6 +269,9 @@ def send_email_ses(session, subject, html_body, sender, recipients, region):
             }
         }
     )
+    #debug
+    print(f"SES email is sent for post patch")
+    print()
 
     return response
 
@@ -381,8 +385,9 @@ def get_patch_status_counts(ssm, window_id):
 
     return success, failure
 
-# Main Lambda logic
-def lambda_handler(event, context):
+# logic for pre patch
+#def lambda_handler(event, context):
+def pre_patch_notification():
 
     OUTPUT_BUCKET = "mmpatching-custom-patchbaseline-dev"
     OUTPUT_KEY = "pre_patch_notification/mw-running-today-output.csv"
@@ -400,15 +405,8 @@ def lambda_handler(event, context):
         role_name = row["role_name"]
         region = row["region"]
 
-        #debug
-        #print(f"account_id: {account_id}, role_name:{role_name}, region: {region}")
-
         #to assume the role
         session = assume_role(account_id, role_name, region)
-        # Debug: confirm assumed account
-        # sts = session.client("sts")
-        # identity = sts.get_caller_identity()
-        # print("Assumed identity:", identity)
 
         ssm = session.client("ssm")
         ec2 = session.client("ec2")
@@ -418,8 +416,6 @@ def lambda_handler(event, context):
 
 
         for mw in response["WindowIdentities"]:
-            # if not mw.get("Enabled", True):
-            #     continue
 
             # Some MWs may not have future executions
             if "NextExecutionTime" not in mw:
@@ -444,12 +440,13 @@ def lambda_handler(event, context):
 
     # Handle no data case Skip CSV + Email if no Maintenance Windows matched
     if not output_rows:
-        print("No Maintenance Windows running today. Skipping notification.")
-        return {
-            "status": "success",
-            "records_written": 0,
-            "message": "No MWs found, notification skipped"
-        }
+        print("No Maintenance Windows running today. Skipping pre and post notification.")
+        sys.exit(0) 
+        # return {
+        #     "status": "success",
+        #     "records_written": 0,
+        #     "message": "No MWs found, notification skipped"
+        # }
 
 
     #to write output 
@@ -547,9 +544,6 @@ def post_patch_function():
 
         # Reuse cached session
         session = cached_session
-
-        #ssm = boto3.client("ssm", region_name="us-east-1")
-        #session = assume_role(account_id, role_name, region)
         ssm = session.client("ssm")
         ec2 = session.client("ec2")
         s3  = session.client("s3")
@@ -564,12 +558,9 @@ def post_patch_function():
             "MaintenanceWindowId": window_id,
             "MaintenanceWindowName": window_name,
             "TargetInstanceCount": row["TargetInstanceCount"],
-            #"Status": f"Success - {success}, Failure - {failure}"
             "Success": success,
             "Failure": failure
         })  
-    #debug
-    #print(f"post patch rows: {post_patch_rows}")  
 
     #to write output to shared s3 bucket so assuming shared account role
     EMAIL_CONFIG_FILE = "email_account.csv"
@@ -601,11 +592,12 @@ def post_patch_function():
 
 if __name__ == "__main__":
     print("Running Pre-Patch script")
-    result = lambda_handler({}, None)
+    #result = lambda_handler({}, None)
+    result = pre_patch_notification()
     print("Pre-Patch notification completed successfully:", result)
 
     print("Waiting 5 minutes before running Post-Patch script...")
-    time.sleep(300) 
+    #time.sleep(300) 
 
     print("Running Post-Patch Script")
     post_patch_function()
